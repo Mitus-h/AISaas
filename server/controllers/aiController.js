@@ -197,7 +197,7 @@ export const removeImageObject = async (req, res) => {
     try {
         const { userId } = req.auth;
         const { object } = req.body; 
-        const {image} = req.file;
+        const image = req.file;
         const plan = req.plan;
 
         if (plan !== 'premium') {
@@ -207,7 +207,7 @@ export const removeImageObject = async (req, res) => {
         const uploadResult = await cloudinary.uploader.upload(image.path);
         const { public_id } = uploadResult;
 
-        const imageURL = cloudinary.url(public_id,{
+        const secure_url = cloudinary.url(public_id,{
             transformation:[
                 {
                     effect: `gen_remove:${object}`
@@ -218,10 +218,10 @@ export const removeImageObject = async (req, res) => {
 
         // Save the creation record to the database
         await sql`INSERT INTO creations (user_id, prompt, content, type) 
-                  VALUES (${userId},${`Removed ${object} from image`}, ${imageURL}, 'image')`;
+                  VALUES (${userId},${`Removed ${object} from image`}, ${secure_url}, 'image')`;
         
         // Send the final image URL back to the client
-        res.json({ success: true, imageURL});
+        res.json({ success: true, secure_url});
 
     } catch (error) {
     console.error("Error generating image:", error);
@@ -247,8 +247,9 @@ export const resumeReview = async (req, res) => {
             return res.json({success:false, message:"Resume file size exceeds allowed size (5MB)"})
         }
 
-        const dataBuffer =  fs.readFileSync(resume.path)   
-        const pdfData = await pdf(dataBuffer)
+        const dataBuffer = fs.readFileSync(resume.path)
+
+        const pdfData = await pdf(dataBuffer);
 
         const prompt = `Review the following resume and provide constructive 
         feedback on its strength, weakness, and areas for improvement. Resume Content:\n\n${pdfData.text}`
@@ -263,7 +264,7 @@ export const resumeReview = async (req, res) => {
             ],
 
             temperature: 0.7,
-            max_tokens: 1000,
+            max_tokens: 4096,
             
         });
 
